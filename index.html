@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>单词保卫战-可视优化版</title>
+    <title>单词保卫战-小写键盘版</title>
     <style>
         :root { --primary: #4ecca3; --accent: #ff4757; --bg: #0a0a12; }
         * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -11,94 +11,97 @@
         html, body { 
             position: fixed; width: 100%; height: 100%; overflow: hidden; 
             margin: 0; padding: 0; background: var(--bg); color: white;
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; font-family: 'Segoe UI', sans-serif;
         }
 
+        /* 顶部状态栏 */
         .header { 
-            height: 60px; display: flex; justify-content: space-between; align-items: center; 
+            height: 60px; min-height: 60px; display: flex; 
+            justify-content: space-between; align-items: center; 
             padding: 0 10px; background: #1a1a2e; border-bottom: 2px solid #333; z-index: 100;
         }
 
-        /* 游戏区域：确保单词不会被隐藏 */
-        #stage { 
-            flex: 1; position: relative; width: 100%; 
-            background: #05050a; overflow: visible; /* 允许单词在舞台内可见 */
-            z-index: 10;
-        }
+        #stage { flex: 1; position: relative; width: 100%; background: #05050a; overflow: hidden; z-index: 10; }
 
-        /* 单词样式：提升 z-index 确保在最前 */
+        /* 单词气泡 */
         .word { 
-            position: absolute; 
-            background: rgba(20, 20, 40, 0.95); 
-            border: 2px solid var(--primary); 
-            border-radius: 8px; 
-            padding: 8px 12px; 
-            font-size: 22px; 
-            font-weight: bold; 
-            white-space: nowrap;
-            z-index: 50; /* 核心：确保单词在所有背景之上 */
-            transform: translateZ(0); /* 开启 GPU 加速防止渲染闪烁 */
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            position: absolute; background: rgba(30, 30, 60, 0.9); 
+            border: 2px solid var(--primary); border-radius: 10px; 
+            padding: 8px 15px; font-size: 22px; font-weight: bold; 
+            white-space: nowrap; z-index: 50; transform: translateZ(0);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-
-        .typed { color: #555; }
+        .typed { color: #666; }
         .next { color: var(--accent); text-decoration: underline; }
         .wait { color: #f9ed69; }
 
-        /* 键盘 */
+        /* 小写字母键盘布局 */
         #kb { 
-            height: 190px; width: 100%; background: #111; 
-            display: none; flex-direction: column; padding: 5px; gap: 5px; 
+            height: 180px; width: 100%; background: #111; 
+            display: none; flex-direction: column; padding: 6px; gap: 6px; 
             border-top: 2px solid var(--primary); z-index: 100;
             padding-bottom: env(safe-area-inset-bottom);
         }
-
-        .kb-row { display: flex; justify-content: center; gap: 4px; flex: 1; }
+        .kb-row { display: flex; justify-content: center; gap: 5px; flex: 1; }
         .key { 
-            flex: 1; background: #30305a; border-radius: 6px; 
+            flex: 1; background: #2a2a4a; border-radius: 8px; 
             display: flex; align-items: center; justify-content: center; 
-            font-size: 18px; font-weight: bold; border-bottom: 3px solid #000;
+            font-size: 22px; font-weight: 500; border-bottom: 4px solid #000;
+            color: #eee; text-transform: lowercase; /* 确保显示为小写 */
         }
+        .key:active { background: var(--primary); color: #000; border-bottom: none; transform: translateY(2px); }
 
-        .mode-box { display: flex; background: #000; border: 1.5px solid var(--primary); border-radius: 20px; overflow: hidden; }
-        .m-btn { padding: 5px 10px; font-size: 11px; border: none; color: #888; background: none; }
-        .m-btn.active { background: var(--primary); color: #000; font-weight: bold; }
+        /* 弹窗及按钮 */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 2000; display: none; flex-direction: column; padding: 20px; }
+        .word-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        .word-row input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #000; color: #fff; font-size: 16px; }
+
+        .btn { padding: 12px 25px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-green { background: var(--primary); color: #000; }
+        .btn-add { background: #333; color: #fff; width: 100%; margin-top: 15px; font-size: 16px; }
 
         #mask { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .btn-start { padding: 15px 50px; background: var(--primary); color: #000; border: none; border-radius: 12px; font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div style="font-size: 16px;">分:<span id="score-display">0</span> ❤️:<span id="lives-display">3</span></div>
-        <div class="mode-box">
-            <button id="use-voice" class="m-btn active">语音模式</button>
-            <button id="use-manual" class="m-btn">手动键盘</button>
+        <div style="font-size: 16px; font-weight: bold;">Score: <span id="score-display" style="color:var(--primary)">0</span></div>
+        <div style="display: flex; background: #000; border-radius: 20px; border: 1px solid #444; padding: 2px;">
+            <button id="mode-v" style="padding: 6px 15px; border: none; background: var(--primary); border-radius: 18px; font-size: 12px; font-weight: bold;">语音</button>
+            <button id="mode-m" style="padding: 6px 15px; border: none; background: none; color: #888; border-radius: 18px; font-size: 12px;">手动</button>
         </div>
-        <button onclick="location.reload()" style="background:none; border:none; color:white; font-size: 20px;">🔄</button>
+        <button onclick="showConfig()" style="background:none; border:none; font-size: 24px; padding: 0 10px;">⚙️</button>
     </div>
 
     <div id="stage"></div>
-
     <div id="kb"></div>
 
     <div id="mask">
-        <h1 style="color:var(--primary)">单词保卫战</h1>
-        <p style="color:#777; margin-bottom: 30px;">点击下方按钮开始</p>
-        <button class="btn-start" onclick="startGame()">进入战场</button>
+        <h1 style="color:var(--primary); font-size: 32px; letter-spacing: 2px;">单词保卫战</h1>
+        <div id="lives-display" style="font-size: 24px; margin-bottom: 20px;">❤️❤️❤️</div>
+        <button class="btn btn-green" style="padding: 18px 60px; font-size: 22px; box-shadow: 0 0 20px rgba(78,204,163,0.3);" onclick="startGame()">开始战斗</button>
+    </div>
+
+    <div id="config-modal" class="modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+            <h2 style="margin:0;">词库管理</h2>
+            <button class="btn btn-green" onclick="saveConfig()">完成</button>
+        </div>
+        <div id="editor-container" style="flex:1; overflow-y:auto; padding-right: 5px;"></div>
+        <button class="btn btn-add" onclick="addWordRow()">+ 添加单词</button>
     </div>
 
     <script>
-        let game = { mode: 'voice', score: 0, lives: 3, running: false };
+        let game = { mode: 'voice', score: 0, lives: 3, running: false, lastSpawn: 0 };
         let activeWords = [], targetWord = null;
-        let wordList = [{"en":"apple","zh":"苹果"},{"en":"banana","zh":"香蕉"},{"en":"cat","zh":"小猫"},{"en":"dog","zh":"小狗"}];
-        let lastSpawn = 0;
+        let wordList = JSON.parse(localStorage.getItem('myWords') || '[{"en":"apple","zh":"苹果"},{"en":"banana","zh":"香蕉"},{"en":"cat","zh":"猫"}]');
 
-        // 初始化 A-Z 键盘
-        function initAZ() {
+        // 初始化小写 A-Z 键盘
+        function initKeyboard() {
             const kb = document.getElementById('kb');
-            const rows = ["ABCDEFGHIJ", "KLMNOPQRST", "UVWXYZ"];
+            // 分三行排列，布局更美观
+            const rows = ["abcdefghij", "klmnopqrst", "uvwxyz"];
             kb.innerHTML = '';
             rows.forEach(chars => {
                 const row = document.createElement('div');
@@ -106,101 +109,90 @@
                 chars.split('').forEach(c => {
                     const k = document.createElement('div');
                     k.className = 'key';
-                    k.textContent = c;
-                    k.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(c.toLowerCase()); });
-                    k.addEventListener('mousedown', (e) => { handleInput(c.toLowerCase()); });
+                    k.textContent = c; // 这里直接设为小写
+                    const act = (e) => { 
+                        e.preventDefault(); 
+                        handleInput(c); 
+                    };
+                    k.addEventListener('touchstart', act);
+                    k.addEventListener('mousedown', act);
                     row.appendChild(k);
                 });
                 kb.appendChild(row);
             });
         }
 
-        function switchMode(m) {
+        function setMode(m) {
             game.mode = m;
-            document.getElementById('use-voice').classList.toggle('active', m === 'voice');
-            document.getElementById('use-manual').classList.toggle('active', m === 'manual');
-            document.getElementById('kb').style.display = (m === 'manual') ? 'flex' : 'none';
-            // 清理舞台
+            document.getElementById('mode-v').style.background = m === 'voice' ? 'var(--primary)' : 'none';
+            document.getElementById('mode-v').style.color = m === 'voice' ? '#000' : '#888';
+            document.getElementById('mode-m').style.background = m === 'manual' ? 'var(--primary)' : 'none';
+            document.getElementById('mode-m').style.color = m === 'manual' ? '#000' : '#888';
+            document.getElementById('kb').style.display = m === 'manual' ? 'flex' : 'none';
+            
             document.getElementById('stage').innerHTML = '';
             activeWords = [];
             targetWord = null;
         }
 
         function startGame() {
+            if(wordList.length === 0) return alert("请先添加单词！");
             document.getElementById('mask').style.display = 'none';
             game.running = true;
             game.score = 0;
             game.lives = 3;
-            updateStats();
+            updateUI();
             requestAnimationFrame(loop);
         }
 
         function handleInput(char) {
-            if (!game.running || !char) return;
-            // 查找匹配的单词
+            if (!game.running) return;
             if (!targetWord) {
+                // 优先寻找位置最靠下的匹配单词
                 targetWord = activeWords.filter(w => w.text[w.idx] === char).sort((a,b) => b.y - a.y)[0];
             }
-            
             if (targetWord && targetWord.text[targetWord.idx] === char) {
                 targetWord.idx++;
-                renderWordHTML(targetWord);
+                renderWord(targetWord);
                 if (targetWord.idx === targetWord.text.length) {
-                    targetWord.el.remove();
-                    activeWords = activeWords.filter(w => w !== targetWord);
+                    targetWord.el.style.transform = 'scale(1.2)';
+                    targetWord.el.style.opacity = '0';
+                    const captured = targetWord;
+                    setTimeout(() => captured.el.remove(), 100);
+                    activeWords = activeWords.filter(w => w !== captured);
                     targetWord = null;
                     game.score += 10;
-                    updateStats();
+                    updateUI();
                 }
             }
         }
 
-        function spawn() {
-            const data = wordList[Math.floor(Math.random()*wordList.length)];
-            const el = document.createElement('div');
-            el.className = 'word';
-            // 随机 X 坐标，确保不超出屏幕
-            const x = Math.random() * (window.innerWidth - 120);
-            const obj = { el, text: data.en, zh: data.zh, x: x, y: -50, idx: 0 };
-            document.getElementById('stage').appendChild(el);
-            activeWords.push(obj);
-            renderWordHTML(obj);
-        }
-
-        function renderWordHTML(w) {
-            w.el.style.left = w.x + 'px';
-            w.el.style.top = w.y + 'px';
-            w.el.innerHTML = `
-                <span class="typed">${w.text.slice(0, w.idx)}</span><span class="next">${w.text[w.idx]||''}</span><span class="wait">${w.text.slice(w.idx+1)}</span>
-                <div style="font-size:12px; color:var(--primary); text-align:center; font-weight:normal;">${w.zh}</div>
-            `;
-        }
-
         function loop(t) {
             if (!game.running) return;
+            
+            // 速度优化：手动模式比语音模式更慢
+            let speed = (game.mode === 'manual') ? 0.6 : 1.1;
+            let interval = (game.mode === 'manual') ? 4000 : 2500;
 
-            // 产生速度控制
-            if (t - lastSpawn > Math.max(1000, 3000 - game.score * 5)) {
-                spawn();
-                lastSpawn = t;
+            if (t - game.lastSpawn > Math.max(1200, interval - game.score * 8)) {
+                spawnWord();
+                game.lastSpawn = t;
             }
 
-            // 移动单词
             for (let i = activeWords.length - 1; i >= 0; i--) {
                 const w = activeWords[i];
-                w.y += 1 + (game.score * 0.001); // 随分数增加速度
+                w.y += speed + (game.score * 0.0006);
                 w.el.style.top = w.y + 'px';
 
-                // 碰撞检测（到达舞台底部）
                 if (w.y > document.getElementById('stage').offsetHeight) {
                     w.el.remove();
                     activeWords.splice(i, 1);
                     if (targetWord === w) targetWord = null;
                     game.lives--;
-                    updateStats();
+                    updateUI();
                     if (game.lives <= 0) {
                         game.running = false;
-                        alert("挑战结束！得分: " + game.score);
+                        alert("游戏结束！得分: " + game.score);
                         location.reload();
                     }
                 }
@@ -208,15 +200,57 @@
             requestAnimationFrame(loop);
         }
 
-        function updateStats() {
+        function spawnWord() {
+            const data = wordList[Math.floor(Math.random() * wordList.length)];
+            const el = document.createElement('div');
+            el.className = 'word';
+            const x = Math.random() * (window.innerWidth - 130) + 10;
+            const obj = { el, text: data.en.toLowerCase(), zh: data.zh, x: x, y: -60, idx: 0 };
+            document.getElementById('stage').appendChild(el);
+            activeWords.push(obj);
+            renderWord(obj);
+        }
+
+        function renderWord(w) {
+            w.el.style.left = w.x + 'px';
+            w.el.style.top = w.y + 'px';
+            w.el.innerHTML = `
+                <span class="typed">${w.text.slice(0, w.idx)}</span><span class="next">${w.text[w.idx]||''}</span><span class="wait">${w.text.slice(w.idx+1)}</span>
+                <div style="font-size:12px;color:var(--primary);text-align:center;margin-top:4px;font-weight:normal;">${w.zh}</div>
+            `;
+        }
+
+        function updateUI() {
             document.getElementById('score-display').textContent = game.score;
             document.getElementById('lives-display').textContent = "❤️".repeat(Math.max(0, game.lives));
         }
 
+        function showConfig() {
+            const container = document.getElementById('editor-container');
+            container.innerHTML = '';
+            wordList.forEach(w => addWordRow(w.en, w.zh));
+            document.getElementById('config-modal').style.display = 'flex';
+        }
+
+        function addWordRow(en = '', zh = '') {
+            const row = document.createElement('div');
+            row.className = 'word-row';
+            row.innerHTML = `<input type="text" class="en-in" value="${en}" placeholder="en"> <input type="text" class="zh-in" value="${zh}" placeholder="中文">`;
+            document.getElementById('editor-container').appendChild(row);
+        }
+
+        function saveConfig() {
+            const ens = document.querySelectorAll('.en-in'), zhs = document.querySelectorAll('.zh-in');
+            wordList = [];
+            ens.forEach((el, i) => { if(el.value) wordList.push({en: el.value.toLowerCase().trim(), zh: zhs[i].value}); });
+            localStorage.setItem('myWords', JSON.stringify(wordList));
+            document.getElementById('config-modal').style.display = 'none';
+        }
+
         window.onload = () => {
-            initAZ();
-            document.getElementById('use-voice').onclick = () => switchMode('voice');
-            document.getElementById('use-manual').onclick = () => switchMode('manual');
+            initKeyboard();
+            document.getElementById('mode-v').onclick = () => setMode('voice');
+            document.getElementById('mode-m').onclick = () => setMode('manual');
         };
     </script>
 </body>
